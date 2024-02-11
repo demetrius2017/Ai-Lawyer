@@ -1,12 +1,11 @@
-from docx import Document
-import openai
-import os
 import json
-from dotenv import load_dotenv
-import re
-from docx import Document
-
 import logging
+import os
+import re
+
+import openai
+from docx import Document
+from dotenv import load_dotenv
 
 # Загружаем переменные окружения из файла .env
 load_dotenv()
@@ -178,7 +177,7 @@ def identify_parties(document_text, attempts=3):
                 messages=[
                     {
                         "role": "system",
-                        "content": "Определите стороны в договоре, указанные в тексте ниже, и верните результат в формате JSON, включая возможные роли, такие как покупатель и продавец, арендатор и арендодатель, заказчик и исполнитель. Пример формата ответа: {'part1': 'Заказчик', 'part2': 'Исполнитель'}. Обязательно соблюдение четких переменных part1 и part2.",
+                        "content": "Определите стороны в договоре, указанные в тексте ниже, и верните результат в формате JSON, включая возможные роли, такие как покупатель и продавец, арендатор и арендодатель, заказчик и исполнитель. СТРОГИЙ формата ответа: {'part1': 'Заказчик', 'part2': 'Исполнитель'}. Обязательно соблюдение четких переменных part1 и part2.",
                     },
                     {"role": "user", "content": document_text[:500]},
                 ],
@@ -196,9 +195,6 @@ def identify_parties(document_text, attempts=3):
                 return parties_dict
             else:
                 logger.telega(f"Попытка {attempt + 1}: Ответ не содержит ожидаемых ключей 'part1' и 'part2'.")
-
-        except json.JSONDecodeError as e:
-            logger.telega(f"Попытка {attempt + 1}: Не удалось декодировать ответ в JSON: {e}")
         except Exception as e:
             logger.telega(f"Попытка {attempt + 1}: Произошла ошибка при идентификации сторон договора: {e}")
 
@@ -207,6 +203,8 @@ def identify_parties(document_text, attempts=3):
 
 
 def save_document(parties_info, filename, clauses):
+    # Создание каталога, если он не существует
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     part1 = parties_info["part1"]
     part2 = parties_info["part2"]
@@ -214,10 +212,17 @@ def save_document(parties_info, filename, clauses):
     doc = Document()
     for clause in clauses:
         doc.add_paragraph(clause["original"])
-        # Использование метода .get() для предотвращения KeyError
-        comment_executor = doc.add_paragraph(f"{part1} Feedback: {clause.get(part1, 'Нет фидбека')}")
-        comment_customer = doc.add_paragraph(f"{part2} Feedback: {clause.get(part1, 'Нет фидбека')}")
-        doc.add_paragraph(clause.get("final", "Финальная версия не определена"))
+
+        # Добавляем обратную связь от первой стороны
+        doc.add_paragraph(f"{part1} Feedback: {clause.get('part1_feedback', 'Нет фидбека')}")
+
+        # Добавляем обратную связь от второй стороны
+        doc.add_paragraph(f"{part2} Feedback: {clause.get('part2_feedback', 'Нет фидбека')}")
+
+        # Добавляем финальную версию пункта
+        doc.add_paragraph(f"Финальная версия: {clause.get('final', 'Финальная версия не определена')}")
+
+    # Сохраняем документ
     doc.save(filename)
 
 

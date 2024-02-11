@@ -1,25 +1,26 @@
-from telegram import Update, ForceReply
+import logging
+import os
+
+from telegram import ForceReply, Update
 from telegram.ext import (
-    CommandHandler,
-    MessageHandler,
     Application,
     CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
-    ContextTypes,
 )
 
-import logging
-from tellogging import setup_logger
-from main import set_logger  # Импортируйте функцию set_logger
-import os
-from main import process_document
 import main
+from main import set_logger  # Импортируйте функцию set_logger
+from main import process_document
+from tellogging import setup_logger
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 assert TOKEN, "Токен бота не задан"
 # Включаем логирование
-logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.ERROR)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 logger = logging.getLogger(__name__)
 
 import aiohttp
@@ -63,7 +64,10 @@ async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     logger.telega("Бот запущен. Ожидаю документы для анализа.")
 
     document = update.message.document
-    if document.mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    if (
+        document.mime_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ):
         file = await context.bot.get_file(document.file_id)
         file_url = file.file_path  # Получение URL для скачивания файла
         file_path = f"./recieved/{document.file_name}"
@@ -80,7 +84,9 @@ async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # После анализа отправьте результат пользователю
         await update.message.reply_document(document=open(file_send, "rb"))
     else:
-        await update.message.reply_text("Пожалуйста, отправьте документ в формате docx.")
+        await update.message.reply_text(
+            "Пожалуйста, отправьте документ в формате docx."
+        )
 
 
 def main() -> None:
